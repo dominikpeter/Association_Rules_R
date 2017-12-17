@@ -6,8 +6,10 @@ library(Matrix)
 library(arules)
 library(readxl)
 
+
+# "http://pbpython.com/market-basket-analysis.html"
+
 df <- read_excel("Data/Online Retail.xlsx")
-data("Adult")
 
 df <- df %>% 
   mutate(InvoiceNo = InvoiceNo %>% as.factor,
@@ -30,50 +32,28 @@ tr <- as(m, "transactions")
 
 summary(tr)
 
-itemsets <- apriori(tr, parameter = list(target = "frequent",
-                                            supp=0.001, minlen = 2, maxlen=1000))
-
-
-
-itemsets
-inspect(head(sort(itemsets), n=10))
-
-quality(itemsets)$lift <- interestMeasure(itemsets, measure="lift", trans = tr)
-
-library(arulesViz)
-plot(head(sort(itemsets, by = "lift"), n=50), method = "graph", control=list(cex=.8))
+itemsets <- apriori(tr, parameter = list(target = "rules",
+                                            supp=0.0001, minlen = 2, maxlen=3))
 
 
 
 
-r <- apriori(tr, parameter = list(supp=0.001, maxlen=400))
+quality(itemsets)$lift <- interestMeasure(itemsets, measure="lift", trans = itemsets)
 
 
-inspect(head(sort(r, by="lift"), n=10))
+clean_rule <- function(x){
+  x %>% str_replace_all("\\{|\\}", "")
+}
 
 
-
-
-lhs(r)
-
-
-plot(r)
-plot(head(sort(r, by="lift"), 50),
-     method="graph", control=list(cex=.7))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+rulesdf = data.frame(
+  lhs = labels(lhs(itemsets)),
+  rhs = labels(rhs(itemsets)), 
+  itemsets@quality) %>% 
+  mutate(antecedants = lhs %>% clean_rule,
+         consequents = rhs %>% clean_rule)
+# %>% 
+#   separate(col=antecedants,into=paste("antecedants ", 1:3), sep = ",",extra="merge")
 
 
 
