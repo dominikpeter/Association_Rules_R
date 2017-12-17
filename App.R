@@ -19,8 +19,8 @@ df <- df %>%
 
 
 g <- sparseMatrix(i = df$Description %>% as.integer(),
-             j = df$InvoiceNo %>% as.integer(),
-             x = df$Quantity)
+                  j = df$InvoiceNo %>% as.integer(),
+                  x = df$Quantity)
 
 colnames(g) = levels(df$InvoiceNo)
 rownames(g) = levels(df$Description)
