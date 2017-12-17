@@ -29,16 +29,12 @@ m <- as(g, "ngCMatrix")
 tr <- as(m, "transactions")
 
 
-
-summary(tr)
-
 itemsets <- apriori(tr, parameter = list(target = "rules",
-                                            supp=0.0001, minlen = 2, maxlen=3))
-
-
+                                            supp=0.001, minlen = 2, maxlen=3))
 
 
 quality(itemsets)$lift <- interestMeasure(itemsets, measure="lift", trans = itemsets)
+
 
 
 clean_rule <- function(x){
@@ -51,11 +47,8 @@ rulesdf = data.frame(
   rhs = labels(rhs(itemsets)), 
   itemsets@quality) %>% 
   mutate(antecedants = lhs %>% clean_rule,
-         consequents = rhs %>% clean_rule)
-# %>% 
-#   separate(col=antecedants,into=paste("antecedants ", 1:3), sep = ",",extra="merge")
-
-
+         consequents = rhs %>% clean_rule) %>% 
+  select(-lhs, -rhs)
 
 
 
