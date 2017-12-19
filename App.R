@@ -1,55 +1,59 @@
 
 rm(list = ls())
 
-library(tidyverse)
+library(data.table)
+library(magrittr)
 library(Matrix)
 library(arules)
+library(stringr)
 library(readxl)
-
 
 # "http://pbpython.com/market-basket-analysis.html"
 
-df <- read_excel("Data/Online Retail.xlsx")
+DT <- read_excel("Data/Online Retail.xlsx") %>%
+  as.data.table()
 
-df <- df %>% 
-  mutate(InvoiceNo = InvoiceNo %>% as.factor,
-         Description = Description %>% as.factor,
-         Quantity = ifelse(is.na(Quantity), 0, Quantity)) %>% 
-  tidyr::drop_na()
+DT <- DT[, `:=` (InvoiceNo = InvoiceNo %>% as.factor,
+                 Description = Description %>% as.factor,
+                 Quantity = ifelse(is.na(Quantity), 0, Quantity))] %>% 
+  na.omit()
 
+g <- sparseMatrix(i = DT$Description %>% as.integer(),
+                  j = DT$InvoiceNo %>% as.integer(),
+                  x = DT$Quantity)
 
-g <- sparseMatrix(i = df$Description %>% as.integer(),
-                  j = df$InvoiceNo %>% as.integer(),
-                  x = df$Quantity)
+colnames(g) = levels(DT$InvoiceNo)
+rownames(g) = levels(DT$Description)
 
-colnames(g) = levels(df$InvoiceNo)
-rownames(g) = levels(df$Description)
+itemsets <- as(g, "ngCMatrix") %>% 
+  as("transactions") %>% 
+  apriori(parameter = list(target = "rules",
+                           support=0.0001,
+                           confidence=0.5,
+                           minlen = 2, maxlen=2))
 
-m <- as(g, "ngCMatrix")
-tr <- as(m, "transactions")
-
-
-itemsets <- apriori(tr, parameter = list(target = "rules",
-                                            supp=0.001, minlen = 2, maxlen=3))
-
+g <- NULL
+DT <- NULL
 
 quality(itemsets)$lift <- interestMeasure(itemsets, measure="lift", trans = itemsets)
-
-
 
 clean_rule <- function(x){
   x %>% str_replace_all("\\{|\\}", "")
 }
 
 
-rulesdf = data.frame(
+DT <- data.table(
   lhs = labels(lhs(itemsets)),
   rhs = labels(rhs(itemsets)), 
-  itemsets@quality) %>% 
-  mutate(antecedants = lhs %>% clean_rule,
-         consequents = rhs %>% clean_rule) %>% 
-  select(-lhs, -rhs)
+  itemsets@quality)
 
+DT <- DT[,`:=` (antecedants = lhs %>% clean_rule,
+                consequents = rhs %>% clean_rule)] %>% 
+  .[, .(antecedants, consequents, support, confidence, lift)]
+
+
+DT %>% setkey(antecedants)
+DT[, rank := frank(-lift, ties.method = "dense"), by = key(DT)]
 
 
 
